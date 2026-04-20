@@ -9,44 +9,77 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <header class="app-header">
+
+ <header class="app-header">
     <div class="brand-block">
       <h1>Financeiro 2.0</h1>
-      <img src="./icon-192.png" alt="Icon" style="width:42px; height:42px; border-radius:12px;" />
+
+  <img src="./icon-192.png" alt="Icon" style="width:42px; height:42px; border-radius:12px;" />
+      <!--<p>Controle financeiro pessoal com cara de app</p>
     </div>
+    <button class="btn btn-secondary" onclick="loadDashboard()">Atualizar</button> -->
   </header>
 
+  
+<!--
   <main class="app-shell">
-    <section class="panel panel-chart panel-hero-chart" id="secaoDashboard">
-      <div class="panel-header dashboard-header-mobile">
+
+    <div class="hero-card">
+      <div class="hero-left">
+        <span class="hero-badge">Resumo do período</span>
+        <h2>Seu painel financeiro</h2>
+        <p>Acompanhe saldo, despesas, cartões e lançamentos em um visual mais limpo e direto.</p>
+      </div>
+      <button class="btn btn-success fab-inline" onclick="openLancamentoModal()">+ Novo lançamento</button>
+    </div>
+
+    -->
+
+
+    <section class="panel panel-chart" id="secDashboard">
+      <div class="panel-header">
         <div>
           <h3>Despesas por categoria</h3>
           <p class="panel-subtitle">Visão rápida do peso de cada categoria</p>
         </div>
-        <button class="btn btn-success btn-dashboard-add" onclick="openLancamentoModal()">+ Novo lançamento</button>
       </div>
       <div class="chart-wrap">
         <canvas id="graficoCategorias"></canvas>
       </div>
     </section>
 
-    <section class="filters-card filters-collapsible collapsed" id="filtersCard">
-      <div class="section-title-row">
-        <div>
-          <h3>Filtros</h3>
-          <p class="section-subtitle">Toque para expandir e refinar a visualização</p>
-        </div>
-        <button class="btn btn-ghost filter-toggle" id="toggleFiltros" type="button" aria-expanded="false">
-          <span id="toggleFiltrosTexto">Mostrar</span>
-        </button>
+    <div class="summary-grid summary-scroll">
+      <div class="summary-card highlight">
+        <span class="summary-label">Saldo real</span>
+        <span class="summary-value" id="saldoReal">R$ 0,00</span>
       </div>
+      <div class="summary-card">
+        <span class="summary-label">Saldo projetado</span>
+        <span class="summary-value" id="saldoProjetado">R$ 0,00</span>
+      </div>
+      <div class="summary-card income">
+        <span class="summary-label">Receitas recebidas</span>
+        <span class="summary-value" id="receitasRecebidas">R$ 0,00</span>
+      </div>
+      <div class="summary-card expense">
+        <span class="summary-label">Despesas previstas</span>
+        <span class="summary-value" id="despesasPrevistas">R$ 0,00</span>
+      </div>
+    </div>
 
-      <div class="filters-grid" id="filtersGrid">
-        <div class="field compact-field">
+    <div class="filter-sheet-backdrop hidden" id="filterBackdrop"></div>
+    <aside class="filter-sheet hidden" id="filterSheet">
+      <div class="filter-sheet-handle"></div>
+      <div class="section-title-row filter-sheet-header">
+        <h3>Filtros</h3>
+        <button class="btn btn-ghost" type="button" id="btnCloseFilters">Fechar</button>
+      </div>
+      <div class="filters-grid">
+        <div class="field">
           <label>Mês</label>
           <select id="filtroMes"></select>
         </div>
-        <div class="field compact-field">
+        <div class="field">
           <label>Ano</label>
           <select id="filtroAno"></select>
         </div>
@@ -79,9 +112,9 @@
           <select id="filtroConta"><option value="">Todos</option></select>
         </div>
       </div>
-    </section>
+    </aside>
 
-    <section class="summary-grid" id="cardsResumo">
+    <div class="summary-grid">
       <div class="summary-card highlight">
         <span class="summary-label">Saldo real</span>
         <span class="summary-value" id="saldoReal">R$ 0,00</span>
@@ -98,21 +131,24 @@
         <span class="summary-label">Despesas previstas</span>
         <span class="summary-value" id="despesasPrevistas">R$ 0,00</span>
       </div>
-    </section>
+    </div>
 
-    <section class="panel panel-highlight" id="secaoFaturas">
-      <div class="panel-header">
-        <div>
-          <h3>Próxima fatura</h3>
-          <p class="panel-subtitle">Cartão mais urgente do período</p>
+    <div class="content-grid">
+      <div class="panel panel-highlight">
+        <div class="panel-header">
+          <div>
+            <h3>Próxima fatura</h3>
+            <p class="panel-subtitle">Cartão mais urgente do período</p>
+          </div>
+        </div>
+        <div class="list-container" id="proximaFatura">
+          <div class="empty-state">Nenhuma fatura disponível.</div>
         </div>
       </div>
-      <div class="list-container" id="proximaFatura">
-        <div class="empty-state">Nenhuma fatura disponível.</div>
-      </div>
-    </section>
+    </div>
 
-    <section class="panel" id="secaoLancamentos" style="margin-bottom:18px;">
+    <!-- LANÇAMENTOS -->
+    <section class="panel" id="secLancamentos" style="margin-bottom:18px;">
       <div class="panel-header">
         <div>
           <h3>Lançamentos</h3>
@@ -126,9 +162,10 @@
       <div class="list-container" id="listaLancamentos">
         <div class="empty-state">Nenhum lançamento encontrado.</div>
       </div>
-    </section>
+    </div>
 
-    <section class="panel" id="secaoFixas" style="margin-bottom:18px;">
+    <!-- DESPESAS FIXAS -->
+    <section class="panel" id="secFixas" style="margin-bottom:18px;">
       <div class="panel-header">
         <div>
           <h3>Despesas fixas previstas</h3>
@@ -142,9 +179,10 @@
       <div class="list-container" id="listaFixas">
         <div class="empty-state">Nenhuma fixa cadastrada.</div>
       </div>
-    </section>
+    </div>
 
-    <section class="panel" id="secaoCartoes" style="margin-bottom:18px;">
+    <!-- CARTÕES E FATURAS -->
+    <section class="panel" id="secFaturas" style="margin-bottom:18px;">
       <div class="panel-header">
         <div>
           <h3>Cartões e faturas</h3>
@@ -159,17 +197,19 @@
         <div class="empty-state">Nenhum cartão cadastrado.</div>
       </div>
     </section>
+
   </main>
 
   <button class="fab" onclick="openLancamentoModal()">+</button>
 
   <nav class="bottom-nav">
-    <button class="nav-item active" data-target="secaoDashboard">Dashboard</button>
-    <button class="nav-item" data-target="secaoLancamentos">Lançamentos</button>
-    <button class="nav-item" data-target="secaoFixas">Fixas</button>
-    <button class="nav-item" data-target="secaoFaturas">Faturas</button>
+    <button class="nav-item active" data-target="secDashboard">Dashboard</button>
+    <button class="nav-item" data-target="secLancamentos">Lançamentos</button>
+    <button class="nav-item" data-target="secFixas">Fixas</button>
+    <button class="nav-item" data-target="secFaturas">Faturas</button>
   </nav>
 
+  <!-- MODAL: LANÇAMENTO -->
   <div class="modal" id="modalLancamento">
     <div class="modal-content">
       <div class="modal-head">
@@ -246,17 +286,18 @@
           </div>
           <div class="field hidden" id="fieldTotalParcelas">
             <label>Total de parcelas</label>
-            <input type="number" name="total_parcelas" id="lancTotalParcelas" min="2" max="48" value="1" />
+            <input type="number" name="total_parcelas" id="lancTotalParcelas" min="2" max="48" value="2" />
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modalLancamento')">Cancelar</button>
+          <button type="button" class="btn btn-ghost" onclick="closeModal('modalLancamento')">Cancelar</button>
           <button type="submit" class="btn btn-success">Salvar</button>
         </div>
       </form>
     </div>
-  </div>
+  </section>
 
+  <!-- MODAL: FIXA -->
   <div class="modal" id="modalFixa">
     <div class="modal-content">
       <div class="modal-head">
@@ -273,7 +314,9 @@
           </div>
           <div class="field">
             <label>Categoria</label>
-            <select name="categoria" id="fixaCategoria" required><option value="">Selecione</option></select>
+            <select name="categoria" id="fixaCategoria" required>
+              <option value="">Selecione</option>
+            </select>
           </div>
           <div class="field">
             <label>Valor padrão</label>
@@ -285,17 +328,21 @@
           </div>
           <div class="field">
             <label>Ativo</label>
-            <select name="ativo"><option value="sim">Sim</option><option value="nao">Não</option></select>
+            <select name="ativo">
+              <option value="sim">Sim</option>
+              <option value="nao">Não</option>
+            </select>
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modalFixa')">Cancelar</button>
+          <button type="button" class="btn btn-ghost" onclick="closeModal('modalFixa')">Cancelar</button>
           <button type="submit" class="btn btn-success">Salvar</button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- MODAL: CARTÃO -->
   <div class="modal" id="modalCartao">
     <div class="modal-content">
       <div class="modal-head">
@@ -310,30 +357,37 @@
             <label>Nome do cartão</label>
             <input type="text" name="nome_cartao" required />
           </div>
-          <div class="field">
+          <div class="field field-span-2">
             <label>Banco</label>
             <input type="text" name="banco" required />
+          </div>
+          <div class="field">
+            <label>Dia do fechamento</label>
+            <input type="number" name="dia_fechamento" min="1" max="31" required />
+          </div>
+          <div class="field">
+            <label>Dia do vencimento</label>
+            <input type="number" name="dia_vencimento" min="1" max="31" required />
           </div>
           <div class="field">
             <label>Limite</label>
             <input type="number" name="limite" step="0.01" min="0" />
           </div>
           <div class="field">
-            <label>Dia de fechamento</label>
-            <input type="number" name="dia_fechamento" min="1" max="31" required />
-          </div>
-          <div class="field">
-            <label>Dia de vencimento</label>
-            <input type="number" name="dia_vencimento" min="1" max="31" required />
+            <label>Ativo</label>
+            <select name="ativo">
+              <option value="sim">Sim</option>
+              <option value="nao">Não</option>
+            </select>
           </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modalCartao')">Cancelar</button>
+          <button type="button" class="btn btn-ghost" onclick="closeModal('modalCartao')">Cancelar</button>
           <button type="submit" class="btn btn-success">Salvar</button>
         </div>
       </form>
     </div>
-  </div>
+  </section>
 
   <script src="./config.js"></script>
   <script src="./script.js"></script>
