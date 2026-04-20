@@ -1,4 +1,3 @@
-
 let state = {
   categorias: [],
   cartoes: [],
@@ -10,6 +9,7 @@ let state = {
 };
 
 let chartCategorias;
+
 const $ = (sel) => document.querySelector(sel);
 
 const el = {
@@ -19,9 +19,6 @@ const el = {
   filterStatus: $('#filtroStatus'),
   filterForma: $('#filtroForma'),
   filterConta: $('#filtroConta'),
-  toggleFiltros: $('#toggleFiltros'),
-  toggleFiltrosTexto: $('#toggleFiltrosTexto'),
-  filtersCard: $('#filtersCard'),
 
   saldoReal: $('#saldoReal'),
   saldoProjetado: $('#saldoProjetado'),
@@ -61,17 +58,30 @@ const el = {
   fieldTotalParcelas: $('#fieldTotalParcelas'),
 
   fixaCategoria: $('#fixaCategoria'),
-  navItems: document.querySelectorAll('.nav-item'),
+  btnOpenFilters: $('#btnOpenFilters'),
+  btnCloseFilters: $('#btnCloseFilters'),
+  filterSheet: $('#filterSheet'),
+  filterBackdrop: $('#filterBackdrop'),
+  bottomNavItems: document.querySelectorAll('.bottom-nav .nav-item'),
 };
 
-const ITEMS_VISIVEIS = { lancamentos: 5, fixas: 5, cartoes: 5 };
-const expanded = { lancamentos: false, fixas: false, cartoes: false };
+// Controla quantos itens são exibidos por seção
+const ITEMS_VISIVEIS = {
+  lancamentos: 5,
+  fixas: 5,
+  cartoes: 5,
+};
+
+const expanded = {
+  lancamentos: false,
+  fixas: false,
+  cartoes: false,
+};
 
 document.addEventListener('DOMContentLoaded', async () => {
   initFilters();
   bindEvents();
   await loadDashboard();
-  setupBottomNav();
   registerServiceWorker();
 });
 
@@ -106,9 +116,8 @@ function bindEvents() {
   el.filterForma?.addEventListener('change', () => {
     updateFiltroContaOptions();
     renderAll();
+    closeFilterSheet();
   });
-
-  el.toggleFiltros?.addEventListener('click', toggleFiltros);
 
   el.formLancamento?.addEventListener('submit', onSaveLancamento);
   el.formFixa?.addEventListener('submit', onSaveFixa);
@@ -116,44 +125,14 @@ function bindEvents() {
 
   el.lancForma?.addEventListener('change', updatePagamentoFields);
   el.lancParcelado?.addEventListener('change', updatePagamentoFields);
-}
 
-function setupBottomNav() {
-  el.navItems?.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const target = document.getElementById(btn.dataset.target);
-      if (!target) return;
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setActiveNav(btn.dataset.target);
-    });
+  el.btnOpenFilters?.addEventListener('click', openFilterSheet);
+  el.btnCloseFilters?.addEventListener('click', closeFilterSheet);
+  el.filterBackdrop?.addEventListener('click', closeFilterSheet);
+
+  el.bottomNavItems?.forEach(btn => {
+    btn.addEventListener('click', () => navigateSection(btn.dataset.target));
   });
-
-  const observer = new IntersectionObserver((entries) => {
-    const visible = entries
-      .filter(entry => entry.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-    if (visible?.target?.id) setActiveNav(visible.target.id);
-  }, { rootMargin: '-20% 0px -45% 0px', threshold: [0.2, 0.45, 0.7] });
-
-  ['secaoDashboard', 'secaoLancamentos', 'secaoFixas', 'secaoFaturas'].forEach(id => {
-    const node = document.getElementById(id);
-    if (node) observer.observe(node);
-  });
-}
-
-function setActiveNav(targetId) {
-  el.navItems?.forEach(btn => btn.classList.toggle('active', btn.dataset.target === targetId));
-}
-
-function toggleFiltros(forceExpand) {
-  if (!el.filtersCard) return;
-  const willExpand = typeof forceExpand === 'boolean'
-    ? forceExpand
-    : el.filtersCard.classList.contains('collapsed');
-
-  el.filtersCard.classList.toggle('collapsed', !willExpand);
-  if (el.toggleFiltros) el.toggleFiltros.setAttribute('aria-expanded', String(willExpand));
-  if (el.toggleFiltrosTexto) el.toggleFiltrosTexto.textContent = willExpand ? 'Ocultar' : 'Mostrar';
 }
 
 async function loadDashboard() {
@@ -178,6 +157,7 @@ async function loadDashboard() {
       dashboard: json.dashboard || {},
     };
 
+    // Reset expand ao recarregar
     expanded.lancamentos = false;
     expanded.fixas = false;
     expanded.cartoes = false;
@@ -192,8 +172,15 @@ async function loadDashboard() {
 
 function populateFilters() {
   fillSelect(el.filterCategory, state.categorias || [], 'Todas');
-  const formas = unique((state.lancamentos || []).map(l => l.forma_pagamento).filter(Boolean).concat(['Pix', 'Débito', 'Crédito', 'Dinheiro', 'Transferência']));
+
+  const formas = unique(
+    (state.lancamentos || [])
+      .map(l => l.forma_pagamento)
+      .filter(Boolean)
+      .concat(['Pix', 'Débito', 'Crédito', 'Dinheiro', 'Transferência'])
+  );
   fillSelect(el.filterForma, formas, 'Todas');
+
   updateFiltroContaOptions();
 }
 
@@ -202,9 +189,15 @@ function updateFiltroContaOptions() {
   let options = [];
 
   if (forma === 'Crédito') {
-    options = (state.cartoes || []).filter(c => String(c.ativo || '').toLowerCase() === 'sim').map(c => c.nome_cartao).filter(Boolean);
+    options = (state.cartoes || [])
+      .filter(c => String(c.ativo || '').toLowerCase() === 'sim')
+      .map(c => c.nome_cartao)
+      .filter(Boolean);
   } else if (['Pix', 'Débito', 'Transferência', 'Dinheiro'].includes(forma)) {
-    options = (state.contas || []).filter(c => String(c.ativo || '').toLowerCase() === 'sim').map(c => c.nome).filter(Boolean);
+    options = (state.contas || [])
+      .filter(c => String(c.ativo || '').toLowerCase() === 'sim')
+      .map(c => c.nome)
+      .filter(Boolean);
   } else {
     options = unique([
       ...(state.contas || []).map(c => c.nome).filter(Boolean),
@@ -218,9 +211,24 @@ function updateFiltroContaOptions() {
 function populateModals() {
   fillSelect(el.lancCategoria, state.categorias || [], 'Selecione');
   fillSelect(el.fixaCategoria, state.categorias || [], 'Selecione');
-  fillSelect(el.lancConta, (state.contas || []).filter(c => String(c.ativo || '').toLowerCase() === 'sim').map(c => c.nome), 'Selecione');
-  fillSelect(el.lancCartao, (state.cartoes || []).filter(c => String(c.ativo || '').toLowerCase() === 'sim').map(c => `${c.id_cartao}||${c.nome_cartao}`), 'Selecione', true);
-  if (el.lancData && !el.lancData.value) el.lancData.value = new Date().toISOString().slice(0, 10);
+
+  fillSelect(
+    el.lancConta,
+    (state.contas || []).filter(c => String(c.ativo || '').toLowerCase() === 'sim').map(c => c.nome),
+    'Selecione'
+  );
+
+  fillSelect(
+    el.lancCartao,
+    (state.cartoes || []).filter(c => String(c.ativo || '').toLowerCase() === 'sim').map(c => `${c.id_cartao}||${c.nome_cartao}`),
+    'Selecione',
+    true
+  );
+
+  if (el.lancData && !el.lancData.value) {
+    el.lancData.value = new Date().toISOString().slice(0, 10);
+  }
+
   updatePagamentoFields();
 }
 
@@ -253,6 +261,7 @@ function renderAll() {
   renderLancamentos();
   renderFixas();
   renderCartoes();
+  updateActiveNav();
 }
 
 function renderCards() {
@@ -282,7 +291,13 @@ function renderChart() {
       cutout: '62%',
       plugins: {
         legend: { position: 'bottom', labels: { color: '#dbe7ff' } },
-        tooltip: { callbacks: { label(context) { return `${context.label}: ${money(context.raw)}`; } } }
+        tooltip: {
+          callbacks: {
+            label(context) {
+              return `${context.label}: ${money(context.raw)}`;
+            }
+          }
+        }
       }
     },
     plugins: [{
@@ -301,93 +316,131 @@ function renderChart() {
     }]
   });
 
-  const subtitle = document.querySelector('.panel-hero-chart .panel-subtitle');
+  const subtitle = document.querySelector('.panel-chart .panel-subtitle');
   if (subtitle) {
-    subtitle.textContent = maior ? `Maior gasto do mês: ${maior.categoria} (${money(maior.valor)})` : 'Visão rápida do peso de cada categoria';
+    subtitle.textContent = maior
+      ? `Maior gasto do mês: ${maior.categoria} (${money(maior.valor)})`
+      : 'Visão rápida do peso de cada categoria';
   }
 }
 
 function renderProximaFatura() {
   const f = state.dashboard?.proxima_fatura;
   if (!el.proximaFatura) return;
+
   if (!f) {
-    el.proximaFatura.innerHTML = '<div class="empty-state">Nenhuma fatura disponível.</div>';
+    el.proximaFatura.innerHTML = `<div class="empty-state">Nenhuma fatura disponível.</div>`;
     return;
   }
+
   el.proximaFatura.innerHTML = `
     <div class="list-item">
       <div class="list-item-title">${escapeHtml(f.nome_cartao)}</div>
       <div class="list-item-meta">Competência ${escapeHtml(cleanCompetencia(f.competencia))} • vence em ${formatDateBR(f.data_vencimento)}</div>
       <div class="list-item-title" style="margin-top:8px;">${money(f.valor_total)}</div>
-    </div>`;
+    </div>
+  `;
 }
 
 function renderLancamentos() {
   const todos = filteredLancamentos();
   if (!el.listaLancamentos) return;
+
   if (!todos.length) {
-    el.listaLancamentos.innerHTML = '<div class="empty-state">Nenhum lançamento encontrado.</div>';
+    el.listaLancamentos.innerHTML = `<div class="empty-state">Nenhum lançamento encontrado.</div>`;
     atualizarBotaoVerMais('btnVerMaisLancamentos', 0, 0, 'lancamentos');
     return;
   }
+
   const limite = expanded.lancamentos ? todos.length : ITEMS_VISIVEIS.lancamentos;
   const items = todos.slice(0, limite);
+
   el.listaLancamentos.innerHTML = items.map(item => {
     const sinal = item.tipo === 'receita' ? '+' : '-';
-    const origem = item.forma_pagamento === 'Crédito' ? (item.nome_cartao || item.conta_pagamento || '') : (item.conta_pagamento || '');
-    const parcelaInfo = String(item.total_parcelas || '1') !== '1' ? `${item.parcela_atual || 1}/${item.total_parcelas}` : '';
-    const editBtn = item.id_lancamento ? `<button class="btn btn-ghost" type="button" style="height:36px;padding:0 12px;font-size:0.85rem;" onclick="editLancamento('${escapeJs(item.id_lancamento)}')">Editar</button>` : '';
-    const deleteBtn = item.id_lancamento ? `<button class="btn btn-danger" type="button" style="height:36px;padding:0 12px;font-size:0.85rem;" onclick="deleteLancamento('${escapeJs(item.id_lancamento)}')">Excluir</button>` : '';
+    const origem = item.forma_pagamento === 'Crédito'
+      ? (item.nome_cartao || item.conta_pagamento || '')
+      : (item.conta_pagamento || '');
+    const parcelaInfo = String(item.total_parcelas || '1') !== '1'
+      ? `${item.parcela_atual || 1}/${item.total_parcelas}`
+      : '';
+
+    const editBtn = item.id_lancamento
+      ? `<button class="btn btn-ghost" type="button" style="height:36px;padding:0 12px;font-size:0.85rem;" onclick="editLancamento('${escapeJs(item.id_lancamento)}')">Editar</button>`
+      : '';
+
+    const deleteBtn = item.id_lancamento
+      ? `<button class="btn btn-danger" type="button" style="height:36px;padding:0 12px;font-size:0.85rem;" onclick="deleteLancamento('${escapeJs(item.id_lancamento)}')">Excluir</button>`
+      : '';
+
     return `
       <div class="list-item">
         <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
-          <div style="flex:1; min-width:0;">
+          <div style="flex:1;">
             <div class="list-item-title">${escapeHtml(item.descricao)}</div>
             <div class="list-item-meta">${formatDateBR(item.data)} • ${escapeHtml(item.categoria)} • ${escapeHtml(item.status || '')}</div>
-            <div class="list-item-meta">Forma: ${escapeHtml(item.forma_pagamento || '-')}${origem ? ` • Origem: ${escapeHtml(origem)}` : ''}${parcelaInfo ? ` • Parcela: ${escapeHtml(parcelaInfo)}` : ''}</div>
+            <div class="list-item-meta">
+              Forma: ${escapeHtml(item.forma_pagamento || '-')}
+              ${origem ? ` • Origem: ${escapeHtml(origem)}` : ''}
+              ${parcelaInfo ? ` • Parcela: ${escapeHtml(parcelaInfo)}` : ''}
+            </div>
             <div class="list-item-title" style="margin-top:8px;">${sinal} ${money(item.valor)}</div>
           </div>
-          <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">${editBtn}${deleteBtn}</div>
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+            ${editBtn}
+            ${deleteBtn}
+          </div>
         </div>
-      </div>`;
+      </div>
+    `;
   }).join('');
+
   atualizarBotaoVerMais('btnVerMaisLancamentos', todos.length, limite, 'lancamentos');
 }
 
 function renderFixas() {
   const todos = (state.fixas || []).filter(f => String(f.ativo || '').toLowerCase() === 'sim');
   if (!el.listaFixas) return;
+
   if (!todos.length) {
-    el.listaFixas.innerHTML = '<div class="empty-state">Nenhuma fixa cadastrada.</div>';
+    el.listaFixas.innerHTML = `<div class="empty-state">Nenhuma fixa cadastrada.</div>`;
     atualizarBotaoVerMais('btnVerMaisFixas', 0, 0, 'fixas');
     return;
   }
+
   const limite = expanded.fixas ? todos.length : ITEMS_VISIVEIS.fixas;
   const items = todos.slice(0, limite);
+
   el.listaFixas.innerHTML = items.map(item => `
     <div class="list-item">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-        <div style="flex:1; min-width:0;">
+        <div style="flex:1;">
           <div class="list-item-title">${escapeHtml(item.descricao)}</div>
           <div class="list-item-meta">${escapeHtml(item.categoria)} • vence dia ${escapeHtml(String(item.dia_vencimento))}</div>
           <div class="list-item-title" style="margin-top:8px;">${money(item.valor_padrao)}</div>
         </div>
-        <div><button class="btn btn-danger" type="button" style="height:36px;padding:0 12px;font-size:0.85rem;" onclick="deleteFixa('${escapeJs(String(item.id_fixa))}')">Excluir</button></div>
+        <div>
+          <button class="btn btn-danger" type="button" style="height:36px;padding:0 12px;font-size:0.85rem;" onclick="deleteFixa('${escapeJs(String(item.id_fixa))}')">Excluir</button>
+        </div>
       </div>
-    </div>`).join('');
+    </div>
+  `).join('');
+
   atualizarBotaoVerMais('btnVerMaisFixas', todos.length, limite, 'fixas');
 }
 
 function renderCartoes() {
   if (!el.listaCartoes) return;
+
   const todosCartoes = state.cartoes || [];
   const todasFaturas = state.faturas || [];
   const totalItens = todosCartoes.length + todasFaturas.length;
+
   if (!totalItens) {
-    el.listaCartoes.innerHTML = '<div class="empty-state">Nenhum cartão cadastrado.</div>';
+    el.listaCartoes.innerHTML = `<div class="empty-state">Nenhum cartão cadastrado.</div>`;
     atualizarBotaoVerMais('btnVerMaisCartoes', 0, 0, 'cartoes');
     return;
   }
+
   const limite = expanded.cartoes ? totalItens : ITEMS_VISIVEIS.cartoes;
   const cards = [];
 
@@ -396,14 +449,17 @@ function renderCartoes() {
     cards.push(`
       <div class="list-item">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
-          <div style="flex:1; min-width:0;">
+          <div style="flex:1;">
             <div class="list-item-title">${escapeHtml(c.nome_cartao)}</div>
             <div class="list-item-meta">Fecha dia ${escapeHtml(String(c.dia_fechamento))} • vence dia ${escapeHtml(String(c.dia_vencimento))}</div>
             <div class="list-item-meta">Limite ${money(c.limite || 0)}</div>
           </div>
-          <div><button class="btn btn-danger" type="button" style="height:36px;padding:0 12px;font-size:0.85rem;" onclick="deleteCartao('${escapeJs(String(c.id_cartao))}')">Excluir</button></div>
+          <div>
+            <button class="btn btn-danger" type="button" style="height:36px;padding:0 12px;font-size:0.85rem;" onclick="deleteCartao('${escapeJs(String(c.id_cartao))}')">Excluir</button>
+          </div>
         </div>
-      </div>`);
+      </div>
+    `);
   }
 
   for (const f of todasFaturas) {
@@ -413,27 +469,34 @@ function renderCartoes() {
         <div class="list-item-title">Fatura ${escapeHtml(f.nome_cartao)}</div>
         <div class="list-item-meta">${escapeHtml(cleanCompetencia(f.competencia))} • vencimento ${formatDateBR(f.data_vencimento)}</div>
         <div class="list-item-title" style="margin-top:8px;">${money(f.valor_total)}</div>
-      </div>`);
+      </div>
+    `);
   }
 
   el.listaCartoes.innerHTML = cards.join('');
   atualizarBotaoVerMais('btnVerMaisCartoes', totalItens, cards.length, 'cartoes');
 }
 
+// Atualiza o texto e visibilidade do botão "Ver mais / Ver menos"
 function atualizarBotaoVerMais(btnId, total, exibindo, secao) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
+
   if (total <= ITEMS_VISIVEIS[secao]) {
     btn.style.display = 'none';
     return;
   }
+
   btn.style.display = '';
   const restante = total - exibindo;
-  btn.textContent = expanded[secao] ? 'Ver menos' : `Ver mais (${restante} oculto${restante !== 1 ? 's' : ''})`;
+  btn.textContent = expanded[secao]
+    ? 'Ver menos'
+    : `Ver mais (${restante} oculto${restante !== 1 ? 's' : ''})`;
 }
 
 function toggleVerMais(secao) {
   expanded[secao] = !expanded[secao];
+
   if (secao === 'lancamentos') renderLancamentos();
   if (secao === 'fixas') renderFixas();
   if (secao === 'cartoes') renderCartoes();
@@ -444,8 +507,11 @@ function filteredLancamentos() {
     if (el.filterCategory?.value && item.categoria !== el.filterCategory.value) return false;
     if (el.filterStatus?.value && item.status !== el.filterStatus.value) return false;
     if (el.filterForma?.value && item.forma_pagamento !== el.filterForma.value) return false;
+
     if (el.filterConta?.value) {
-      const alvo = item.forma_pagamento === 'Crédito' ? (item.nome_cartao || item.conta_pagamento || '') : (item.conta_pagamento || '');
+      const alvo = item.forma_pagamento === 'Crédito'
+        ? (item.nome_cartao || item.conta_pagamento || '')
+        : (item.conta_pagamento || '');
       if (alvo !== el.filterConta.value) return false;
     }
     return true;
@@ -472,8 +538,10 @@ async function onSaveLancamento(ev) {
   }
 
   if (data.parcelado !== 'sim') data.total_parcelas = 1;
+
   const action = editing ? 'updateLancamento' : 'saveLancamento';
   await postAction(action, data);
+
   resetLancamentoForm();
   closeModal('modalLancamento');
   await loadDashboard();
@@ -505,6 +573,7 @@ function editLancamento(id) {
   }
 
   resetLancamentoForm();
+
   if (el.tituloModalLancamento) el.tituloModalLancamento.textContent = 'Editar lançamento';
   if (el.lancId) el.lancId.value = item.id_lancamento || '';
   if (el.lancData) el.lancData.value = normalizeDateForInput(item.data);
@@ -545,6 +614,7 @@ async function postAction(action, data) {
   const payload = { action, data };
   const body = new URLSearchParams();
   body.append('payload', JSON.stringify(payload));
+
   const res = await fetch(API_URL, { method: 'POST', body });
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || 'Falha ao salvar');
@@ -585,12 +655,14 @@ function fillSelect(select, values, placeholder, cartaoComTexto = false) {
   if (!select) return;
   const current = select.value;
   select.innerHTML = '';
+
   if (placeholder !== undefined) {
     const opt = document.createElement('option');
     opt.value = '';
     opt.textContent = placeholder;
     select.appendChild(opt);
   }
+
   values.forEach(value => {
     if (!value) return;
     const opt = document.createElement('option');
@@ -604,14 +676,74 @@ function fillSelect(select, values, placeholder, cartaoComTexto = false) {
     }
     select.appendChild(opt);
   });
-  if ([...select.options].some(o => o.value === current)) select.value = current;
+
+  if ([...select.options].some(o => o.value === current)) {
+    select.value = current;
+  }
 }
 
-function openLancamentoModal() { resetLancamentoForm(); openModal('modalLancamento'); }
+
+function openFilterSheet() {
+  el.filterSheet?.classList.remove('hidden');
+  el.filterBackdrop?.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeFilterSheet() {
+  el.filterSheet?.classList.add('hidden');
+  el.filterBackdrop?.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function navigateSection(targetId) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(updateActiveNav, 200);
+}
+
+function updateActiveNav() {
+  if (!el.bottomNavItems?.length) return;
+  const sections = ['secDashboard', 'secLancamentos', 'secFixas', 'secFaturas']
+    .map(id => document.getElementById(id))
+    .filter(Boolean);
+
+  let activeId = 'secDashboard';
+  let best = Infinity;
+
+  sections.forEach(section => {
+    const dist = Math.abs(section.getBoundingClientRect().top - 110);
+    if (dist < best) {
+      best = dist;
+      activeId = section.id;
+    }
+  });
+
+  el.bottomNavItems.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.target === activeId);
+  });
+}
+
+window.addEventListener('scroll', updateActiveNav, { passive: true });
+
+
+function openLancamentoModal() {
+  resetLancamentoForm();
+  openModal('modalLancamento');
+}
+
 function openFixaModal() { openModal('modalFixa'); }
 function openCartaoModal() { openModal('modalCartao'); }
-function openModal(id) { const modal = document.getElementById(id); if (modal) modal.style.display = 'flex'; }
-function closeModal(id) { const modal = document.getElementById(id); if (modal) modal.style.display = 'none'; }
+
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) modal.style.display = 'none';
+}
 
 window.openLancamentoModal = openLancamentoModal;
 window.openFixaModal = openFixaModal;
@@ -625,12 +757,15 @@ window.deleteCartao = deleteCartao;
 window.toggleVerMais = toggleVerMais;
 
 function registerServiceWorker() {
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  }
 }
 
 function money(value) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
 }
+
 
 function formatDateBR(value) {
   if (!value) return '-';
@@ -657,7 +792,7 @@ function cleanCompetencia(value) {
   if (!value) return '-';
   const raw = String(value).trim();
   const match = raw.match(/^(\d{4})-(\d{2})/);
-  if (match) return `${match[2]}/${match[1]}`;
+  if (match) return `${match[1]}-${match[2]}`;
   return raw;
 }
 
@@ -666,7 +801,9 @@ function normalizeDateForInput(value) {
   const raw = String(value).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   const date = new Date(raw);
-  if (!isNaN(date.getTime())) return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  if (!isNaN(date.getTime())) {
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
   return '';
 }
 
@@ -679,15 +816,16 @@ function unique(arr) {
   return [...new Set(arr.filter(Boolean))];
 }
 
+
 function escapeHtml(str) {
   return String(str || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+    .replace(/\"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
 
 function escapeJs(str) {
-  return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\'");
+  return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
